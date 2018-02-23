@@ -2,4 +2,8 @@
 .idea
 # Exclude credentials
 credentials.py
-
+# Extra files
+.DS_Store
+MyStreamListener.pyc
+credentials.pyc
+twitter-data-analysis

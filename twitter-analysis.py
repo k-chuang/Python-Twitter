@@ -46,9 +46,9 @@ def write_json(tweets, filename):
 def print_limit_status(api):
     print json.dumps(api.rate_limit_status(), indent=4, sort_keys=True)
 
-def get_tweets(api, query=None, item_num=100, favorite_count=0,retweet_count=0):
-    ## Grabs unique tweets (not retweeted) with specified favorite count and retweet ount
-    ## returns list of tweets with creation time, text of tweet, favorite count, retweet count, tweet id and username
+def get_tweets(api, query=None, item_num=100, favorite_count=0, retweet_count=0):
+    ## Grabs unique tweets with specifications
+    ## returns list of tweets with more information
     ids = set()
     t_list = []
     for tweet in limit_handled(tweepy.Cursor(
@@ -180,7 +180,6 @@ def main():
     #stream.filter(follow=['user_id'], async=True)
 
     ## Sentiment Analysis of tweets
-    # Note: user_timeline function includes an argument for filtering retweets (include_rts)
     tweets = api.user_timeline(screen_name="StephenAtHome", count=200)
     print("Number of tweets extracted: {}.\n".format(len(tweets)))
 
@@ -243,14 +242,20 @@ def main():
     data['SA'] = np.array([analyze_sentiment(tweet) for tweet in data['Tweets']])
 
     # We construct lists with classified tweets:
-    pos_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] > 0]
-    neu_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] == 0]
-    neg_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] < 0]
+    pos_tweets = [tweet for index,
+                            tweet in enumerate(data['Tweets']) if data['SA'][index] > 0]
+    neu_tweets = [tweet for index,
+                            tweet in enumerate(data['Tweets']) if data['SA'][index] == 0]
+    neg_tweets = [tweet for index,
+                            tweet in enumerate(data['Tweets']) if data['SA'][index] < 0]
 
     # Print percentages
-    print("Percentage of positive tweets: {}%".format(len(pos_tweets) * 100 / len(data['Tweets'])))
-    print("Percentage of neutral tweets: {}%".format(len(neu_tweets) * 100 / len(data['Tweets'])))
-    print("Percentage de negative tweets: {}%".format(len(neg_tweets) * 100 / len(data['Tweets'])))
+    print("Percentage of positive tweets: {}%"
+          .format(len(pos_tweets) * 100 / len(data['Tweets'])))
+    print("Percentage of neutral tweets: {}%"
+          .format(len(neu_tweets) * 100 / len(data['Tweets'])))
+    print("Percentage de negative tweets: {}%"
+          .format(len(neg_tweets) * 100 / len(data['Tweets'])))
 
 if __name__ == '__main__':
     main()
