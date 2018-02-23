@@ -1,11 +1,8 @@
 import tweepy
 import json
 
-
-# Override tweepy.StreamListener to add logic to on_status
-
+# Override tweepy.StreamListener functions for needs
 class MyStreamListener(tweepy.StreamListener):
-    ''' Handles data received from the stream. '''
 
     def on_connect(self):
         """Called once connected to streaming server.
@@ -14,7 +11,6 @@ class MyStreamListener(tweepy.StreamListener):
         to perform some work prior to entering the read loop.
         """
         print 'Successful response received from Twitter streaming server! \n'
-
 
     def on_status(self, status):
         # Prints the text of the tweet
@@ -27,10 +23,8 @@ class MyStreamListener(tweepy.StreamListener):
               + status.user.screen_name
               + ', Tweet text: '
               + post)
-
         with open('stream_tweets.json','a') as fp:
             json.dump(status._json, fp, indent=4)
-
         return True
 
     def on_error(self, status_code):

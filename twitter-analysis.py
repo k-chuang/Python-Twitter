@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 
-import json
-import time
-import tweepy
-from tweepy import Stream
-from credentials import *
-import pandas as pd
 import csv
+import json
 import re
-from textblob import TextBlob
-import numpy as np
+import time
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tweepy
+from credentials import *
+from textblob import TextBlob
+from tweepy import Stream
 from MyStreamListener import MyStreamListener
-
+from pprint import pprint
 
 def OAuthentication():
     ''' Uses credential.py file to authenticate user'''
-    auth = tweepy.OAuthHandler(CONSUMER_KEY,CONSUMER_SECRET )
+    auth = tweepy.OAuthHandler(CONSUMER_KEY,CONSUMER_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
     api = tweepy.API(auth)
     return api, auth
@@ -74,7 +74,6 @@ def writeCSV(filename, tweet_list):
         tweet_list = iter(tweet_list)
     except TypeError, te:
         print tweet_list, 'is not iterable'
-
     csvFile = open(filename + '.csv', 'w')
     csvWriter = csv.writer(csvFile)
     for tweet in tweet_list:
@@ -99,10 +98,9 @@ def grab_trends(api, woeid=1):
             tweet_volume = ['Number of tweets: ' + str(trend['tweet_volume']) for trend in trends]
             url = [trend['url'] for trend in trends]
             trend_data = zip(names, tweet_volume, url)
-            trend_data = {location: trends}
+            trend_data = {location: trend_data}
             trend_data_list.append(trend_data)
         return trend_data_list
-
     trends = api.trends_place(woeid)
     data = trends[0]
     location = data['locations'][0]['name']
@@ -112,7 +110,7 @@ def grab_trends(api, woeid=1):
     tweet_volume = ['Number of tweets: ' + str(trend['tweet_volume']) for trend in trends]
     url = [trend['url'] for trend in trends]
     trend_data = zip(names,tweet_volume,url)
-    trend_data = {location:trends}
+    trend_data = {location:trend_data}
     return trend_data
 
 def get_woeid(api,locations):
@@ -122,7 +120,7 @@ def get_woeid(api,locations):
     ## If empty list/ string not recognized
     if not list_of_places:
         print 'Warning: the location you entered in was not recognized!'
-        print 'Defaulting to WorldWide woeid...'
+        print 'Defaulting to WorldWide woeid of 1...'
         return 1
     elif len(list_of_places) > 1:
         woeid_list = []
@@ -143,7 +141,7 @@ def clean_tweet(tweet):
     Utility function to clean the text in a tweet by removing
     links and special characters using regex.
     '''
-    ## matches any shoutouts (@chuang_kevin), any regular alphanumeric expression, or website
+    ## matches any tagged users, any regular alphanumeric expression, or website
     return ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", tweet).split())
 
 def analyze_sentiment(tweet):
