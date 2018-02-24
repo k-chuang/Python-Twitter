@@ -2,6 +2,9 @@
 .idea
 # Exclude credentials
 credentials.py
+# Exclude written json or csv files
+*.csv
+*.json
 # Extra files
 .DS_Store
 MyStreamListener.pyc
