@@ -1,12 +1,19 @@
 # Ignore .idea files
 .idea
+
 # Exclude credentials
 credentials.py
+
 # Exclude written json or csv files
 *.csv
 *.json
+
 # Extra files
 .DS_Store
-MyStreamListener.pyc
-credentials.pyc
+*.pyc
 twitter-data-analysis
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
