@@ -3,38 +3,23 @@
 import csv
 import json
 import re
-import time
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tweepy
 from credentials import *
 from textblob import TextBlob
-from tweepy import Stream
-from MyStreamListener import MyStreamListener
-from pprint import pprint
-import time
+from grab_trends import grab_trends, get_woeid
+from search_tweets import get_tweets_from_user, search_unique_tweets
 
-def OAuthentication():
+
+def authenticate():
     ''' Uses credential.py file to authenticate user'''
     auth = tweepy.OAuthHandler(CONSUMER_KEY,CONSUMER_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
     api = tweepy.API(auth)
     return api, auth
 
-def limit_handled(cursor):
-    ''' Handles limits of Twitter API '''
-    while True:
-        try:
-            yield cursor.next()
-        except tweepy.RateLimitError:
-            time.sleep(13 * 60)
-            print '2 minutes remaining...'
-            time.sleep(2 * 60)
-        except tweepy.error.TweepError:
-            time.sleep(13 * 60)
-            print '2 minutes remaining...'
-            time.sleep(2 * 60)
 
 def write_json(tweets, filename):
     ''' Function that appends tweets to a file. '''
@@ -44,131 +29,15 @@ def write_json(tweets, filename):
             json_obj.append(tweet._json)
         json.dump(json_obj, f, indent=4, sort_keys=True)
 
-def print_limit_status(api):
-    print json.dumps(api.rate_limit_status(), indent=4, sort_keys=True)
-
-def get_tweets(api, query=None, item_num=100, favorite_count=0, retweet_count=0):
-    ## Grabs unique tweets with specifications
-    ## returns list of tweets with more information
-    ids = set()
-    t_list = []
-    for tweet in limit_handled(tweepy.Cursor(
-            api.search,
-            q=query,
-            lang="en", include_rts = False).items(item_num)):
-        if (not tweet.retweeted) \
-                and ('RT @' not in tweet.text) \
-                and (int(tweet.favorite_count) >= favorite_count) \
-                and (int(tweet.retweet_count) >= retweet_count):
-            post = tweet.text
-            post = post.replace('|', ' ')
-            post = post.replace('\n', ' ')
-            t_list.append([tweet.created_at, post.encode('utf-8'), tweet.favorite_count, tweet.retweet_count, tweet.id,
-                 tweet.user.screen_name])
-            ids.add(tweet.id)  # add new id
-            print ("number of unique ids seen so far: {}".format(len(ids)))
-    return t_list
-
-def get_all_tweets(api, screen_name, all_tweets=[], max_id=0):
-    #Twitter only allows access to a users most recent 3240 tweets with this method
-
-    #make initial request for most recent tweets (200 is the maximum allowed count)
-    if max_id is 0:
-        new_tweets = api.user_timeline(screen_name=screen_name, count=200)
-    else:
-        # new new_tweets
-        new_tweets = api.user_timeline(screen_name=screen_name, count= 200, max_id=max_id)
-
-    if len(new_tweets) > 0:
-        #save most recent tweets
-        all_tweets.extend(new_tweets)
-        oldest_tweet = all_tweets[-1]
-        oldest_id = oldest_tweet.id - 1
-        oldest_date = oldest_tweet.created_at
-        print " Getting tweets before %s" % (str(oldest_date))
-        print "...%s tweets downloaded so far" % (len(all_tweets))
-        #update the id of the oldest tweet less one
-        return get_all_tweets(api, screen_name=screen_name, all_tweets=all_tweets, max_id=oldest_id)
-
-    out_tweets = [[tweet.id_str, tweet.created_at, tweet.text.encode("utf-8")] for tweet in all_tweets]
-
-    return out_tweets
-
-def writeCSV(filename, tweet_list):
-    ''' Write a list of tweets to a csv file'''
-    try:
-        tweet_list = iter(tweet_list)
-    except TypeError, te:
-        print tweet_list, 'is not iterable'
-    csvFile = open(filename + '.csv', 'w')
-    csvWriter = csv.writer(csvFile)
-    for tweet in tweet_list:
-        csvWriter.writerow(tweet)
-    if csvFile.tell():
-        csvFile.close()
-        return 'Successfully added to CSV file!'
-    else:
-        csvFile.close()
-        return 'Could not find any tweets with this query...'
-
-def grab_trends(api, woeid=1):
-    '''Grab trends based on woeid, default is woeid is WorldWide'''
-    if hasattr(woeid, '__iter__'):
-        trend_data_list = []
-        for w in woeid:
-            trends = api.trends_place(w)
-            data = trends[0]
-            location = data['locations'][0]['name']
-            trends = data['trends']
-            names = [trend['name'] for trend in trends]
-            tweet_volume = ['Number of tweets: ' + str(trend['tweet_volume']) for trend in trends]
-            url = [trend['url'] for trend in trends]
-            trend_data = zip(names, tweet_volume, url)
-            trend_data = {location: trend_data}
-            trend_data_list.append(trend_data)
-        return trend_data_list
-    trends = api.trends_place(woeid)
-    data = trends[0]
-    location = data['locations'][0]['name']
-    trends = data['trends']
-    # grab the information from each trend (name, tweet volume, and url)
-    names = [trend['name'] for trend in trends]
-    tweet_volume = ['Number of tweets: ' + str(trend['tweet_volume']) for trend in trends]
-    url = [trend['url'] for trend in trends]
-    trend_data = zip(names,tweet_volume,url)
-    trend_data = {location:trend_data}
-    return trend_data
-
-def get_woeid(api,locations):
-    ## locations refer to a list of strings that represent a city/region/town recognized by Twitter
-    trends_available = api.trends_available()
-    list_of_places = filter(lambda l: l['name'] in locations, trends_available)
-    ## If empty list/ string not recognized
-    if not list_of_places:
-        print 'Warning: the location you entered in was not recognized!'
-        print 'Defaulting to WorldWide woeid of 1...'
-        return 1
-    elif len(list_of_places) > 1:
-        woeid_list = []
-        for places in list_of_places:
-            woeid_list.append(places['woeid'])
-        return woeid_list
-    ## Use case for one location look up
-    place = reduce(lambda k,v: k.update(v) or k, list_of_places, {})
-    woeid = place['woeid']
-    return woeid
-
-def start_stream(auth, StreamListener):
-    stream = Stream(auth, MyStreamListener())
-    return stream
 
 def clean_tweet(tweet):
     '''
     Utility function to clean the text in a tweet by removing
     links and special characters using regex.
     '''
-    ## matches any tagged users, any regular alphanumeric expression, or website
+    # Matches any tagged users, any regular alphanumeric expression, or website
     return ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", tweet).split())
+
 
 def analyze_sentiment(tweet):
     '''
@@ -183,37 +52,16 @@ def analyze_sentiment(tweet):
     else:
         return -1
 
+
 def main():
-    api, auth = OAuthentication()
-
-    ## Gather tweets with a certain query
-    tweet_list = get_tweets(api,query='#Olympics')
-    write_status = writeCSV('OlympicTweets',tweet_list)
-    print write_status
-
-    ## Trends
-    ## location can be a string with location information or a list of strings
-    #location = ' '
-    #trends = grab_trends(api, get_woeid(api,['San Jose','San Francisco']))
-    #pprint(trends)
-
-    ## Real-time streaming of data
-    #stream = Stream(auth, MyStreamListener())
-    #stream.filter(track=['#Olympics'], async=True)
-    #stream.filter(follow=['user_id'], async=True)
-
-    ## Grab all tweets (or 3240 tweets) from a particular user
-    screen_name = 'realDonaldTrump'
-    all_tweets = get_all_tweets(api,screen_name,[],0)
-    status = writeCSV('%s_tweets' % screen_name, all_tweets)
-    print status
+    api, auth = authenticate()
 
     ## Sentiment Analysis of tweets
-    tweets = api.user_timeline(screen_name="realDonaldTrump", count=200)
+    tweets = get_tweets_from_user(api,screen_name="realDonaldTrump")
     print("Number of tweets extracted: {}.\n".format(len(tweets)))
 
     # Create a pandas dataframe and add to it (Need to work on shortening this)
-    data = pd.DataFrame(data=[tweet.text for tweet in tweets], columns=['Tweets'])
+    data = pd.DataFrame(data=[tweet.text.encode("utf-8") for tweet in tweets], columns=['Tweets'])
     data['len'] = np.array([len(tweet.text) for tweet in tweets])
     data['ID'] = np.array([tweet.id for tweet in tweets])
     data['Date'] = np.array([tweet.created_at for tweet in tweets])
@@ -271,12 +119,9 @@ def main():
     data['SA'] = np.array([analyze_sentiment(tweet) for tweet in data['Tweets']])
 
     # We construct lists with classified tweets:
-    pos_tweets = [tweet for index,
-                            tweet in enumerate(data['Tweets']) if data['SA'][index] > 0]
-    neu_tweets = [tweet for index,
-                            tweet in enumerate(data['Tweets']) if data['SA'][index] == 0]
-    neg_tweets = [tweet for index,
-                            tweet in enumerate(data['Tweets']) if data['SA'][index] < 0]
+    pos_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] > 0]
+    neu_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] == 0]
+    neg_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] < 0]
 
     # Print percentages
     print("Percentage of positive tweets: {}%"
@@ -285,6 +130,7 @@ def main():
           .format(len(neu_tweets) * 100 / len(data['Tweets'])))
     print("Percentage de negative tweets: {}%"
           .format(len(neg_tweets) * 100 / len(data['Tweets'])))
+
 
 if __name__ == '__main__':
     main()
