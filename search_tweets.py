@@ -43,12 +43,13 @@ def search_unique_tweets(api, query=None, item_num=100, favorite_count=0, retwee
             post = tweet.text
             post = post.replace('|', ' ')
             post = post.replace('\n', ' ')
-            t_list.append([tweet.created_at,
-                           post.encode('utf-8'),
-                           tweet.favorite_count,
-                           tweet.retweet_count,
-                           tweet.id,
-                           tweet.user.screen_name])
+            #t_list.append([tweet.created_at,
+            #               post.encode('utf-8'),
+            #               tweet.favorite_count,
+            #               tweet.retweet_count,
+            #               tweet.id,
+            #               tweet.user.screen_name])
+            t_list.append(tweet)
             ids.add(tweet.id)
             print ("number of unique ids seen so far: {}".format(len(ids)))
     return t_list
@@ -92,6 +93,7 @@ def write_csv(filename, tweet_list):
     else:
         csvFile.close()
         return 'Failed to write CSV file...'
+
 
 def main():
 
