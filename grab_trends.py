@@ -35,12 +35,12 @@ def grab_trends(api, woeid=1):
     names = [trend['name'] for trend in trends]
     tweet_volume = ['Number of tweets: ' + str(trend['tweet_volume']) for trend in trends]
     url = [trend['url'] for trend in trends]
-    trend_data = zip(names,tweet_volume,url)
-    trend_data = {location:trend_data}
+    trend_data = zip(names, tweet_volume, url)
+    trend_data = {location: trend_data}
     return trend_data
 
 
-def get_woeid(api,locations):
+def get_woeid(api, locations):
     # locations refer to a list of strings that represent a city/region/town recognized by Twitter
     trends_available = api.trends_available()
     list_of_places = filter(lambda l: l['name'] in locations, trends_available)
@@ -65,8 +65,8 @@ def main():
     api, auth = authenticate()
 
     # location can be a single string with location information or a list of strings
-    location = ['San Jose','San Francisco']
-    trends = grab_trends(api, get_woeid(api,location))
+    location = ['San Jose', 'San Francisco']
+    trends = grab_trends(api, get_woeid(api, location))
     pprint(trends)
 
 
