@@ -35,7 +35,7 @@ def clean_tweet(tweet):
     Utility function to clean the text in a tweet by removing
     links and special characters using regex.
     '''
-    # Matches any tagged users, any regular alphanumeric expression, or website
+    # Removes any tagged users, any regular alphanumeric expression, or website
     return ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", tweet).split())
 
 
@@ -44,7 +44,8 @@ def analyze_sentiment(tweet):
     Utility function to classify the polarity of a tweet
     using textblob.
     '''
-    analysis = TextBlob(clean_tweet(tweet))
+    tweet = clean_tweet(tweet)
+    analysis = TextBlob(tweet)
     if analysis.sentiment.polarity > 0:
         return 1
     elif analysis.sentiment.polarity == 0:
@@ -52,12 +53,42 @@ def analyze_sentiment(tweet):
     else:
         return -1
 
+def analyze_raw_sentiment(tweet):
+    tweet = clean_tweet(tweet)
+    analysis = TextBlob(tweet)
+    return analysis.sentiment.polarity
+
+
+def analyze_subjectivity(tweet):
+    '''
+    Utility function to classify subjectivity of tweet
+    0 is very objective, 1 is very subjective
+    :param tweet:
+    :return:
+    '''
+    tweet = clean_tweet(tweet)
+    analysis = TextBlob(tweet)
+    if analysis.sentiment.subjectivity >= 0.5:
+        return 1
+    else:
+        return 0
+
+
+def make_autopct(values):
+    def my_autopct(pct):
+        total = sum(values)
+        val = int(round(pct*total/100.0))
+        return '{p:.2f}%  ({v:d})'.format(p=pct,v=val)
+    return my_autopct
+
 
 def main():
     api, auth = authenticate()
 
-    ## Sentiment Analysis of tweets
-    tweets = get_tweets_from_user(api,screen_name="realDonaldTrump")
+    # Sentiment Analysis of tweets
+    query = '#SamsungGalaxyS9'
+    tweets = search_unique_tweets(api, query=query, item_num=1000)
+    # tweets = get_tweets_from_user(api,screen_name="realDonaldTrump")
     print("Number of tweets extracted: {}.\n".format(len(tweets)))
 
     # Create a pandas dataframe and add to it (Need to work on shortening this)
@@ -68,6 +99,11 @@ def main():
     data['Source'] = np.array([tweet.source for tweet in tweets])
     data['Likes'] = np.array([tweet.favorite_count for tweet in tweets])
     data['RTs'] = np.array([tweet.retweet_count for tweet in tweets])
+    data['User Location'] = np.array([tweet.user.location for tweet in tweets])
+    # data['Coordinates'] = np.array([tweet.coordinates.coordinates for tweet in tweets])
+    # data['Country'] = np.array([tweet.place.country for tweet in tweets])
+    # data['City'] = np.array([tweet.place.name for tweet in tweets])
+    # data['Type of Place'] = np.array([tweet.place.place_type for tweet in tweets])
 
     fav_max = np.max(data['Likes'])
     rt_max = np.max(data['RTs'])
@@ -100,6 +136,7 @@ def main():
 
     # Obtain all the unique sources of user's tweets
     sources = data['Source'].unique()
+    sources = [source.encode("utf-8") for source in sources]
 
     # Print source list to get visual idea
     print("Creation of content sources:")
@@ -116,12 +153,17 @@ def main():
     plt.show()
 
     # Create a column with the result of the analysis:
-    data['SA'] = np.array([analyze_sentiment(tweet) for tweet in data['Tweets']])
+    data['Sentiment'] = np.array([analyze_sentiment(tweet) for tweet in data['Tweets']])
+    data['Raw Sentiment'] = np.array([analyze_raw_sentiment(tweet) for tweet in data['Tweets']])
+    data['Subjectivity'] = np.array([analyze_subjectivity(tweet) for tweet in data['Tweets']])
 
     # We construct lists with classified tweets:
-    pos_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] > 0]
-    neu_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] == 0]
-    neg_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['SA'][index] < 0]
+    pos_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['Sentiment'][index] > 0]
+    neu_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['Sentiment'][index] == 0]
+    neg_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['Sentiment'][index] < 0]
+
+    obj_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['Subjectivity'][index] == 0]
+    subj_tweets = [tweet for index, tweet in enumerate(data['Tweets']) if data['Subjectivity'][index] == 1]
 
     # Print percentages
     print("Percentage of positive tweets: {}%"
@@ -130,6 +172,31 @@ def main():
           .format(len(neu_tweets) * 100 / len(data['Tweets'])))
     print("Percentage de negative tweets: {}%"
           .format(len(neg_tweets) * 100 / len(data['Tweets'])))
+
+    num_of_values = len(data['Tweets'])
+    df = data.groupby('Sentiment')['Tweets'].nunique().reset_index(name='counts')
+    df['Sentiment Percent'] = (df['counts']/num_of_values) * 100
+    df['Sentiment'] = df['Sentiment'].map({0: 'Neutral', 1: 'Positive', -1: 'Negative'})
+    pie_chart = pd.Series(df['Sentiment Percent'].values,
+                          index=df['Sentiment'].values,
+                          name='')
+
+    pie_chart.plot.pie(fontsize=11,
+                       autopct=make_autopct(df['counts'].values),
+                       figsize=(6, 6))
+    plt.title('Sentiment Analysis for %s' % query)
+    plt.show()
+
+    raw_sent_over_time = pd.Series(data=data['Raw Sentiment'].values, index=data['Date'])
+
+    # Raw sentiment over time:
+    raw_sent_over_time.plot(figsize=(16, 4), color='r')
+    plt.show()
+
+    print("Percentage of objective tweets: {}%"
+          .format(len(obj_tweets) * 100 / len(data['Tweets'])))
+    print("Percentage de subjective tweets: {}%"
+          .format(len(subj_tweets) * 100 / len(data['Tweets'])))
 
 
 if __name__ == '__main__':
