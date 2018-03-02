@@ -1,5 +1,14 @@
+'''
+My Stream Listener
+Created on February 17, 2018
+
+@author: Kevin Chuang
+
+'''
+
 import tweepy
 import json
+
 
 # Override tweepy.StreamListener functions for needs
 class MyStreamListener(tweepy.StreamListener):
@@ -14,7 +23,7 @@ class MyStreamListener(tweepy.StreamListener):
 
     def on_status(self, status):
         # Prints the text of the tweet
-        #print('Tweet text: ' + status.text)
+        print('Tweet text: ' + status.text)
         post = status.text.replace('\n', ' ')
         print(str(status.created_at)
               + ', Author: '
@@ -58,3 +67,4 @@ class MyStreamListener(tweepy.StreamListener):
         """Called when a limitation notice arrives"""
         print 'Limitation notice has arrived...'
         return
+
