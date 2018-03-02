@@ -17,3 +17,6 @@ twitter-data-analysis
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Database files
+*.db
